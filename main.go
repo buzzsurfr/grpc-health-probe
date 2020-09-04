@@ -44,6 +44,7 @@ var (
 	flTLSClientCert string
 	flTLSClientKey  string
 	flTLSServerName string
+	flNotServing    bool
 	flVerbose       bool
 )
 
@@ -74,6 +75,7 @@ func init() {
 	flagSet.StringVar(&flTLSClientCert, "tls-client-cert", "", "(with -tls, optional) client certificate for authenticating to the server (requires -tls-client-key)")
 	flagSet.StringVar(&flTLSClientKey, "tls-client-key", "", "(with -tls) client private key for authenticating to the server (requires -tls-client-cert)")
 	flagSet.StringVar(&flTLSServerName, "tls-server-name", "", "(with -tls) override the hostname used to verify the server certificate")
+	flagSet.BoolVar(&flNotServing, "not-serving", false, "exit gracefully on NOT_SERVING status (default: false)")
 	flagSet.BoolVar(&flVerbose, "v", false, "verbose logs")
 
 	err := flagSet.Parse(os.Args[1:])
@@ -122,7 +124,7 @@ func init() {
 
 	if flVerbose {
 		log.Printf("parsed options:")
-		log.Printf("> addr=%s conn_timeout=%v rpc_timeout=%v", flAddr, flConnTimeout, flRPCTimeout)
+		log.Printf("> addr=%s conn_timeout=%v rpc_timeout=%v not_serving=%v", flAddr, flConnTimeout, flRPCTimeout, flNotServing)
 		log.Printf("> tls=%v", flTLS)
 		if flTLS {
 			log.Printf("  > no-verify=%v ", flTLSNoVerify)
@@ -236,7 +238,7 @@ func main() {
 	}
 	rpcDuration := time.Since(rpcStart)
 
-	if resp.GetStatus() != healthpb.HealthCheckResponse_SERVING {
+	if resp.GetStatus() != healthpb.HealthCheckResponse_SERVING && !(flNotServing && resp.GetStatus() == healthpb.HealthCheckResponse_NOT_SERVING) {
 		log.Printf("service unhealthy (responded with %q)", resp.GetStatus().String())
 		retcode = StatusUnhealthy
 		return
